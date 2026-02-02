@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GeoGuessr Europa - Juego</title>
+    <link rel="stylesheet" href="style.css">
+    <!-- Leaflet CSS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/>
+</head>
+<body>
+    <div class="game-container">
+        <div class="media-panel">
+            <div id="media-content">
+                <!-- Imagen o video aquí -->
+            </div>
+        </div>
+        <div class="map-panel">
+            <div id="map"></div>
+            <button id="confirm-btn" disabled>Confirmar Ubicación</button>
+        </div>
+    </div>
+
+    <!-- Modal de Resultados -->
+    <div id="result-modal" class="modal hidden">
+        <div class="modal-content">
+            <h2>Resultados</h2>
+            <p>Distancia: <span id="res-distance"></span> km</p>
+            <p>Puntaje: <span id="res-score"></span></p>
+            <h3>Ranking Top 10</h3>
+            <ul id="leaderboard-list"></ul>
+            <button id="close-modal">Cerrar</button>
+        </div>
+    </div>
+
+    <div class="controls">
+        <span id="user-display"></span>
+        <button id="logout-btn">Salir</button>
+        <a href="admin.html" id="admin-link" style="display:none; color: white; margin-left: 10px;">Admin</a>
+    </div>
+
+    <!-- Leaflet JS -->
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+    <script src="script.js"></script>
+    <script>
+        // Inicializar juego al cargar
+        initGame();
+    </script>
+</body>
+</html>

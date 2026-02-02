@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Admin - GeoGuessr Europa</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body class="admin-page">
+    <div class="admin-container">
+        <h1>Administración</h1>
+        <p>Define la siguiente ronda.</p>
+        <form id="adminForm">
+            <label>URL de Imagen/Video:</label>
+            <input type="text" id="mediaUrl" placeholder="https://..." required>
+            
+            <label>Latitud Real:</label>
+            <input type="number" step="any" id="realLat" required>
+            
+            <label>Longitud Real:</label>
+            <input type="number" step="any" id="realLon" required>
+            
+            <button type="submit">Guardar Ronda y Reiniciar</button>
+        </form>
+        <div id="admin-msg"></div>
+        <a href="game.html">Volver al juego</a>
+    </div>
+    <script src="script.js"></script>
+    <script>
+        document.getElementById('adminForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const data = {
+                media_url: document.getElementById('mediaUrl').value,
+                real_lat: parseFloat(document.getElementById('realLat').value),
+                real_lon: parseFloat(document.getElementById('realLon').value)
+            };
+            
+            const res = await fetch('/admin/update-round', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify(data)
+            });
+            
+            const result = await res.json();
+            if (res.ok) {
+                document.getElementById('admin-msg').innerText = 'Ronda actualizada!';
+                document.getElementById('admin-msg').style.color = 'green';
+            } else {
+                document.getElementById('admin-msg').innerText = result.error || 'Error';
+                document.getElementById('admin-msg').style.color = 'red';
+            }
+        });
+    </script>
+</body>
+</html>
