@@ -3,7 +3,8 @@ const loginForm = document.getElementById('loginForm');
 if (loginForm) {
     // Check if already logged in
     fetch('/api/me').then(res => {
-        if (res.ok) window.location.href = 'game.html';
+        // Preserve current query params (game slug) on redirect
+        if (res.ok) window.location.href = 'game.html' + window.location.search;
     });
 
     loginForm.addEventListener('submit', async (e) => {
@@ -19,7 +20,7 @@ if (loginForm) {
         
         const data = await res.json();
         if (res.ok) {
-            window.location.href = 'game.html';
+            window.location.href = 'game.html' + window.location.search;
         } else {
             document.getElementById('message').innerText = data.error;
         }
@@ -31,19 +32,22 @@ const logoutBtn = document.getElementById('logout-btn');
 if (logoutBtn) {
     logoutBtn.addEventListener('click', async () => {
         await fetch('/api/logout', { method: 'POST' });
-        window.location.href = 'index.html';
+        window.location.href = 'index.html' + window.location.search;
     });
 }
 
 // GAME LOGIC
 let map, marker, selectedLat, selectedLon;
 let roundData = null;
+// Get game slug from URL or default to 'paris'
+const urlParams = new URLSearchParams(window.location.search);
+const gameSlug = urlParams.get('game') || 'paris';
 
 async function initGame() {
     // Check Auth & Get User
     const meRes = await fetch('/api/me');
     if (!meRes.ok) {
-        window.location.href = 'index.html';
+        window.location.href = 'index.html' + window.location.search;
         return;
     }
     const user = await meRes.json();
@@ -63,18 +67,13 @@ async function initGame() {
     // Click handler
     map.on('click', onMapClick);
 
-    // Load Round
-    loadRound();
+    // Load Round with specific slug
+    loadRound(gameSlug);
 }
 
 function onMapClick(e) {
     // Si ya jugó (roundData.guessed es true) o el botón está procesando, no hacer nada.
-    // roundData puede ser null al inicio, así que verificamos eso también.
     if (roundData && roundData.guessed) return;
-    
-    // Si el botón está disabled y NO es porque ya jugó (ej. procesando), tampoco dejamos.
-    // Pero necesitamos habilitarlo si es el primer click válido.
-    // La lógica anterior prevenía el primer click porque el botón arranca disabled en el HTML.
     
     if (marker) {
         marker.setLatLng(e.latlng);
@@ -90,9 +89,12 @@ function onMapClick(e) {
     }
 }
 
-async function loadRound() {
-    const res = await fetch('/api/round');
-    if (!res.ok) return;
+async function loadRound(slug) {
+    const res = await fetch(`/api/round/${slug}`);
+    if (!res.ok) {
+        alert("Partida no encontrada: " + slug);
+        return;
+    }
     
     roundData = await res.json();
     
@@ -152,21 +154,25 @@ async function loadRound() {
         // Mostrar botón leaderboard
         document.getElementById('leaderboard-btn').style.display = 'inline-block';
 
-        // Pre-cargar datos del modal para cuando le den click
+        // Pre-cargar datos del modal
         document.getElementById('res-distance').innerText = guess.distance.toFixed(2);
         document.getElementById('res-score').innerText = guess.score;
         
         // Cargar ranking
-        const lbRes = await fetch('/api/leaderboard');
-        const leaderboard = await lbRes.json();
-        const list = document.getElementById('leaderboard-list');
-        list.innerHTML = '';
-        leaderboard.forEach(entry => {
-            const li = document.createElement('li');
-            li.innerText = `${entry.username}: ${entry.score} pts (${entry.distance.toFixed(1)} km)`;
-            list.appendChild(li);
-        });
+        loadLeaderboard(slug);
     }
+}
+
+async function loadLeaderboard(slug) {
+    const lbRes = await fetch(`/api/leaderboard/${slug}`);
+    const leaderboard = await lbRes.json();
+    const list = document.getElementById('leaderboard-list');
+    list.innerHTML = '';
+    leaderboard.forEach(entry => {
+        const li = document.createElement('li');
+        li.innerText = `${entry.username}: ${entry.score} pts (${entry.distance.toFixed(1)} km)`;
+        list.appendChild(li);
+    });
 }
 
 // Submit Guess
@@ -178,7 +184,7 @@ if (confirmBtn) {
         confirmBtn.disabled = true;
         confirmBtn.innerText = "Calculando...";
         
-        const res = await fetch('/api/guess', {
+        const res = await fetch(`/api/guess/${gameSlug}`, {
             method: 'POST',
             headers: {'Content-Type': 'application/json'},
             body: JSON.stringify({ lat: selectedLat, lon: selectedLon })
@@ -225,16 +231,7 @@ async function showResults(result) {
     document.getElementById('res-score').innerText = result.score;
     
     // Load leaderboard
-    const lbRes = await fetch('/api/leaderboard');
-    const leaderboard = await lbRes.json();
-    
-    const list = document.getElementById('leaderboard-list');
-    list.innerHTML = '';
-    leaderboard.forEach(entry => {
-        const li = document.createElement('li');
-        li.innerText = `${entry.username}: ${entry.score} pts (${entry.distance.toFixed(1)} km)`;
-        list.appendChild(li);
-    });
+    loadLeaderboard(gameSlug);
     
     document.getElementById('result-modal').classList.remove('hidden');
     

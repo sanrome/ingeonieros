@@ -12,11 +12,18 @@ db.serialize(() => {
     // Tabla de rondas (el juego actual)
     db.run(`CREATE TABLE IF NOT EXISTS round (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
+        slug TEXT UNIQUE,
         media_url TEXT,
         real_lat REAL,
         real_lon REAL,
         active INTEGER DEFAULT 1
     )`);
+
+    // Intentar añadir slug si no existe
+    db.run("ALTER TABLE round ADD COLUMN slug TEXT UNIQUE", (err) => {
+        // Ignorar si ya existe. Si falla por constraint unique en datos existentes, idealmente manejarlo, 
+        // pero para este prototipo asumimos base limpia o sin colisiones manuales.
+    });
 
     // Tabla de suposiciones (guesses)
     db.run(`CREATE TABLE IF NOT EXISTS guesses (
@@ -39,7 +46,8 @@ db.serialize(() => {
     // Insertar una ronda inicial por defecto si no existe
     db.get("SELECT count(*) as count FROM round", (err, row) => {
         if (row.count === 0) {
-            db.run(`INSERT INTO round (media_url, real_lat, real_lon) VALUES (
+            db.run(`INSERT INTO round (slug, media_url, real_lat, real_lon) VALUES (
+                'paris',
                 'https://upload.wikimedia.org/wikipedia/commons/thumb/8/82/Paris_Night.jpg/1024px-Paris_Night.jpg',
                 48.8566,
                 2.3522

@@ -74,16 +74,16 @@ app.post('/api/logout', (req, res) => {
     res.json({ message: 'Logout exitoso' });
 });
 
-// Obtener datos de la ronda actual (sin la respuesta correcta)
-app.get('/api/round', requireAuth, (req, res) => {
-    db.get("SELECT media_url, id, real_lat, real_lon FROM round ORDER BY id DESC LIMIT 1", (err, round) => {
+// Obtener datos de la ronda por SLUG
+app.get('/api/round/:slug', requireAuth, (req, res) => {
+    const slug = req.params.slug;
+    db.get("SELECT media_url, id, real_lat, real_lon FROM round WHERE slug = ?", [slug], (err, round) => {
         if (err) return res.status(500).json({ error: err.message });
-        if (!round) return res.status(404).json({ error: "No active round" });
+        if (!round) return res.status(404).json({ error: "Partida no encontrada" });
         
         // Verificar si el usuario ya jugó esta ronda
         db.get("SELECT * FROM guesses WHERE user_id = ? AND round_id = ? LIMIT 1", [req.session.userId, round.id], (err, guess) => {
              if (guess) {
-                 // Si ya adivinó, devolvemos la info de que ya jugó y sus resultados
                  return res.json({
                      media_url: round.media_url,
                      id: round.id,
@@ -93,7 +93,6 @@ app.get('/api/round', requireAuth, (req, res) => {
                      real_lon: round.real_lon
                  });
              }
-             // Si no ha adivinado, solo devolvemos la info pública (sin coords reales explícitas en el objeto principal para no spoilear fácil en network tab, aunque aquí las enviamos en 'guessed' branch)
              res.json({
                  media_url: round.media_url,
                  id: round.id,
@@ -103,23 +102,24 @@ app.get('/api/round', requireAuth, (req, res) => {
     });
 });
 
-// Enviar suposición
-app.post('/api/guess', requireAuth, (req, res) => {
+// Enviar suposición con SLUG
+app.post('/api/guess/:slug', requireAuth, (req, res) => {
     const { lat, lon } = req.body;
+    const slug = req.params.slug;
     const userId = req.session.userId;
 
-    // Obtener la ronda actual
-    db.get("SELECT * FROM round ORDER BY id DESC LIMIT 1", (err, round) => {
-        if (err || !round) return res.status(500).json({ error: 'Error obteniendo ronda' });
+    // Obtener la ronda por slug
+    db.get("SELECT * FROM round WHERE slug = ?", [slug], (err, round) => {
+        if (err || !round) return res.status(404).json({ error: 'Ronda no encontrada' });
 
-        // Verificar si ya adivinó para esta ronda ESPECÍFICA
+        // Verificar si ya adivinó para esta ronda
         db.get("SELECT * FROM guesses WHERE user_id = ? AND round_id = ? LIMIT 1", [userId, round.id], (err, existingGuess) => {
             if (existingGuess) {
                 return res.status(400).json({ error: 'Ya has jugado esta ronda.' });
             }
 
             // Lógica de distancia
-            const R = 6371; // Radio de la tierra en km
+            const R = 6371; 
             const dLat = (lat - round.real_lat) * Math.PI / 180;
             const dLon = (lon - round.real_lon) * Math.PI / 180;
             const a = 
@@ -127,10 +127,9 @@ app.post('/api/guess', requireAuth, (req, res) => {
                 Math.cos(round.real_lat * Math.PI / 180) * Math.cos(lat * Math.PI / 180) * 
                 Math.sin(dLon/2) * Math.sin(dLon/2);
             const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
-            const distance = R * c; // Distancia en km
+            const distance = R * c; 
 
-            // Puntaje: 5000 puntos max. Decae con distancia.
-            // Fórmula simple: 5000 * e^(-distance / 2000) 
+            // Puntaje
             const score = Math.round(5000 * Math.exp(-distance / 2000));
 
             db.run("INSERT INTO guesses (user_id, round_id, lat, lon, distance, score) VALUES (?, ?, ?, ?, ?, ?)",
@@ -144,47 +143,50 @@ app.post('/api/guess', requireAuth, (req, res) => {
     });
 });
 
-// Leaderboard
-app.get('/api/leaderboard', (req, res) => {
-    // Ranking de los mejores puntajes (o suma de puntajes? Haremos mejores puntajes individuales por simplicidad)
+// Leaderboard por SLUG
+app.get('/api/leaderboard/:slug', (req, res) => {
+    const slug = req.params.slug;
     const sql = `
         SELECT u.username, g.score, g.distance 
         FROM guesses g
         JOIN users u ON g.user_id = u.id
+        JOIN round r ON g.round_id = r.id
+        WHERE r.slug = ?
         ORDER BY g.score DESC, g.distance ASC
         LIMIT 10
     `;
-    db.all(sql, (err, rows) => {
+    db.all(sql, [slug], (err, rows) => {
         if (err) return res.status(500).json({ error: err.message });
         res.json(rows);
     });
 });
 
 // --- ADMIN ---
-app.post('/admin/update-round', requireAuth, (req, res) => {
+app.post('/admin/create-round', requireAuth, (req, res) => {
     // Muy simple: cualquiera logueado puede intentar acceder si conoce la ruta, 
     // pero idealmente verificaríamos un flag 'isAdmin'. 
     // Por simplicidad del prompt "login simple", lo dejamos abierto o chequeamos username 'admin'.
     
     if (req.session.username !== 'admin') {
-        // Permitimos crear el admin si no existe o usamos el primero. 
-        // Para cumplir "Ruta protegida", forzamos que el user sea 'admin'.
-        // El usuario debe loguearse como 'admin' para esto.
         return res.status(403).json({ error: 'Solo admin' });
     }
 
-    const { media_url, real_lat, real_lon } = req.body;
+    const { media_url, real_lat, real_lon, slug } = req.body;
     
-    // Reiniciar ronda implica crear una nueva entrada en round y opcionalmente limpiar guesses
-    // Aquí creamos nueva ronda.
-    db.run("INSERT INTO round (media_url, real_lat, real_lon) VALUES (?, ?, ?)", 
-        [media_url, real_lat, real_lon], 
-        (err) => {
-            if (err) return res.status(500).json({ error: err.message });
-            // Opcional: Borrar guesses anteriores para "reiniciar" el tablero
-            db.run("DELETE FROM guesses", [], (err) => {
-                 res.json({ message: 'Ronda actualizada y tablero reiniciado' });
-            });
+    // Crear nueva ronda con slug específico
+    // Generar slug si no viene (simple timestamp o random)
+    const finalSlug = slug || 'game-' + Date.now();
+
+    db.run("INSERT INTO round (slug, media_url, real_lat, real_lon) VALUES (?, ?, ?, ?)", 
+        [finalSlug, media_url, real_lat, real_lon], 
+        function(err) {
+            if (err) {
+                if (err.message.includes('UNIQUE constraint failed')) {
+                     return res.status(400).json({ error: 'El nombre de la partida ya existe.' });
+                }
+                return res.status(500).json({ error: err.message });
+            }
+            res.json({ message: 'Ronda creada exitosamente', slug: finalSlug });
         }
     );
 });

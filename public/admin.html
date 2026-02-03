@@ -10,6 +10,10 @@
         <h1>Administración</h1>
         <p>Define la siguiente ronda.</p>
         <form id="adminForm">
+            <label>Nombre de la Partida (Slug/ID):</label>
+            <input type="text" id="gameSlug" placeholder="ej: paris-2024 (opcional)" style="width: 100%;">
+            <small>Si se deja vacío, se generará uno automático.</small>
+
             <label>URL de Imagen/Video:</label>
             <input type="text" id="mediaUrl" placeholder="https://..." required>
             
@@ -19,9 +23,11 @@
             <label>Longitud Real:</label>
             <input type="number" step="any" id="realLon" required>
             
-            <button type="submit">Guardar Ronda y Reiniciar</button>
+            <button type="submit">Crear Nueva Partida</button>
         </form>
         <div id="admin-msg"></div>
+        <div id="share-link" style="margin-top: 20px; word-break: break-all; font-weight: bold; color: #2980b9;"></div>
+
         <a href="game.html">Volver al juego</a>
     </div>
     <script src="script.js"></script>
@@ -29,12 +35,13 @@
         document.getElementById('adminForm').addEventListener('submit', async (e) => {
             e.preventDefault();
             const data = {
+                slug: document.getElementById('gameSlug').value.trim(),
                 media_url: document.getElementById('mediaUrl').value,
                 real_lat: parseFloat(document.getElementById('realLat').value),
                 real_lon: parseFloat(document.getElementById('realLon').value)
             };
             
-            const res = await fetch('/admin/update-round', {
+            const res = await fetch('/admin/create-round', {
                 method: 'POST',
                 headers: {'Content-Type': 'application/json'},
                 body: JSON.stringify(data)
@@ -42,11 +49,15 @@
             
             const result = await res.json();
             if (res.ok) {
-                document.getElementById('admin-msg').innerText = 'Ronda actualizada!';
+                document.getElementById('admin-msg').innerText = 'Partida creada exitosamente!';
                 document.getElementById('admin-msg').style.color = 'green';
+                
+                const link = `${window.location.origin}/game.html?game=${result.slug}`;
+                document.getElementById('share-link').innerHTML = `Link para compartir: <br> <a href="${link}" target="_blank">${link}</a>`;
             } else {
                 document.getElementById('admin-msg').innerText = result.error || 'Error';
                 document.getElementById('admin-msg').style.color = 'red';
+                document.getElementById('share-link').innerHTML = '';
             }
         });
     </script>
