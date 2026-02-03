@@ -22,12 +22,19 @@ db.serialize(() => {
     db.run(`CREATE TABLE IF NOT EXISTS guesses (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         user_id INTEGER,
+        round_id INTEGER,
         lat REAL,
         lon REAL,
         distance REAL,
         score INTEGER,
-        FOREIGN KEY(user_id) REFERENCES users(id)
+        FOREIGN KEY(user_id) REFERENCES users(id),
+        FOREIGN KEY(round_id) REFERENCES round(id)
     )`);
+
+    // Intentar añadir round_id si no existe (para bases de datos ya creadas)
+    db.run("ALTER TABLE guesses ADD COLUMN round_id INTEGER", (err) => {
+        // Ignorar error si la columna ya existe
+    });
 
     // Insertar una ronda inicial por defecto si no existe
     db.get("SELECT count(*) as count FROM round", (err, row) => {

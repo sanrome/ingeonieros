@@ -76,15 +76,29 @@ app.post('/api/logout', (req, res) => {
 
 // Obtener datos de la ronda actual (sin la respuesta correcta)
 app.get('/api/round', requireAuth, (req, res) => {
-    db.get("SELECT media_url, id FROM round ORDER BY id DESC LIMIT 1", (err, row) => {
+    db.get("SELECT media_url, id, real_lat, real_lon FROM round ORDER BY id DESC LIMIT 1", (err, round) => {
         if (err) return res.status(500).json({ error: err.message });
+        if (!round) return res.status(404).json({ error: "No active round" });
         
         // Verificar si el usuario ya jugó esta ronda
-        db.get("SELECT * FROM guesses WHERE user_id = ? AND score IS NOT NULL ORDER BY id DESC LIMIT 1", [req.session.userId], (err, guess) => {
-             // Si hay guess reciente, podríamos validarlo, pero simplificaremos mostrando la ronda siempre
-             // y bloqueando el submit en el frontend o backend si ya adivinó.
-             // Para simplificar, permitimos ver la ronda.
-             res.json(row);
+        db.get("SELECT * FROM guesses WHERE user_id = ? AND round_id = ? LIMIT 1", [req.session.userId, round.id], (err, guess) => {
+             if (guess) {
+                 // Si ya adivinó, devolvemos la info de que ya jugó y sus resultados
+                 return res.json({
+                     media_url: round.media_url,
+                     id: round.id,
+                     guessed: true,
+                     guess: guess,
+                     real_lat: round.real_lat,
+                     real_lon: round.real_lon
+                 });
+             }
+             // Si no ha adivinado, solo devolvemos la info pública (sin coords reales explícitas en el objeto principal para no spoilear fácil en network tab, aunque aquí las enviamos en 'guessed' branch)
+             res.json({
+                 media_url: round.media_url,
+                 id: round.id,
+                 guessed: false
+             });
         });
     });
 });
@@ -98,12 +112,12 @@ app.post('/api/guess', requireAuth, (req, res) => {
     db.get("SELECT * FROM round ORDER BY id DESC LIMIT 1", (err, round) => {
         if (err || !round) return res.status(500).json({ error: 'Error obteniendo ronda' });
 
-        // Verificar si ya adivinó para esta ronda (Simplificación: chequeamos si ya tiene un guess reciente con score alto? 
-        // O mejor: borramos guesses previos de esta ronda para este usuario para permitir reintentos solo si el admin resetea?
-        // El requerimiento dice "reiniciar la ronda" en admin.
-        // Asumiremos que el juego es continuo. Chequeamos si ya jugó.
-        
-        db.get("SELECT * FROM guesses WHERE user_id = ? ORDER BY id DESC LIMIT 1", [userId], (err, lastGuess) => {
+        // Verificar si ya adivinó para esta ronda ESPECÍFICA
+        db.get("SELECT * FROM guesses WHERE user_id = ? AND round_id = ? LIMIT 1", [userId, round.id], (err, existingGuess) => {
+            if (existingGuess) {
+                return res.status(400).json({ error: 'Ya has jugado esta ronda.' });
+            }
+
             // Lógica de distancia
             const R = 6371; // Radio de la tierra en km
             const dLat = (lat - round.real_lat) * Math.PI / 180;
@@ -119,8 +133,8 @@ app.post('/api/guess', requireAuth, (req, res) => {
             // Fórmula simple: 5000 * e^(-distance / 2000) 
             const score = Math.round(5000 * Math.exp(-distance / 2000));
 
-            db.run("INSERT INTO guesses (user_id, lat, lon, distance, score) VALUES (?, ?, ?, ?, ?)",
-                [userId, lat, lon, distance, score],
+            db.run("INSERT INTO guesses (user_id, round_id, lat, lon, distance, score) VALUES (?, ?, ?, ?, ?, ?)",
+                [userId, round.id, lat, lon, distance, score],
                 function(err) {
                     if (err) return res.status(500).json({ error: err.message });
                     res.json({ distance, score, real_lat: round.real_lat, real_lon: round.real_lon });

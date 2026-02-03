@@ -1,6 +1,11 @@
 // LOGIN LOGIC
 const loginForm = document.getElementById('loginForm');
 if (loginForm) {
+    // Check if already logged in
+    fetch('/api/me').then(res => {
+        if (res.ok) window.location.href = 'game.html';
+    });
+
     loginForm.addEventListener('submit', async (e) => {
         e.preventDefault();
         const username = document.getElementById('username').value;
@@ -63,8 +68,14 @@ async function initGame() {
 }
 
 function onMapClick(e) {
-    if (document.getElementById('confirm-btn').disabled === true && document.getElementById('confirm-btn').innerText === "Confirmado") return;
-
+    // Si ya jugó (roundData.guessed es true) o el botón está procesando, no hacer nada.
+    // roundData puede ser null al inicio, así que verificamos eso también.
+    if (roundData && roundData.guessed) return;
+    
+    // Si el botón está disabled y NO es porque ya jugó (ej. procesando), tampoco dejamos.
+    // Pero necesitamos habilitarlo si es el primer click válido.
+    // La lógica anterior prevenía el primer click porque el botón arranca disabled en el HTML.
+    
     if (marker) {
         marker.setLatLng(e.latlng);
     } else {
@@ -72,7 +83,11 @@ function onMapClick(e) {
     }
     selectedLat = e.latlng.lat;
     selectedLon = e.latlng.lng;
-    document.getElementById('confirm-btn').disabled = false;
+    
+    // Habilitar botón solo si no ha jugado
+    if (!roundData || !roundData.guessed) {
+        document.getElementById('confirm-btn').disabled = false;
+    }
 }
 
 async function loadRound() {
@@ -97,6 +112,60 @@ async function loadRound() {
         const img = document.createElement('img');
         img.src = url;
         mediaContainer.appendChild(img);
+    }
+
+    // Si ya adivinó, bloquear y mostrar resultados
+    if (roundData.guessed) {
+        const btn = document.getElementById('confirm-btn');
+        btn.innerText = "Ya jugaste";
+        btn.disabled = true;
+        
+        // Mostrar markers
+        const guess = roundData.guess;
+        
+        // Marker usuario
+        L.marker([guess.lat, guess.lon]).addTo(map).bindPopup("Tu elección").openPopup();
+        
+        // Marker real
+        L.marker([roundData.real_lat, roundData.real_lon], {
+             icon: L.icon({
+                iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-green.png',
+                shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/0.7.7/images/marker-shadow.png',
+                iconSize: [25, 41],
+                iconAnchor: [12, 41],
+                popupAnchor: [1, -34],
+                shadowSize: [41, 41]
+            })
+        }).addTo(map).bindPopup("Ubicación Real");
+        
+        // Línea
+        L.polyline([
+            [guess.lat, guess.lon],
+            [roundData.real_lat, roundData.real_lon]
+        ], {color: 'red'}).addTo(map);
+        
+        map.fitBounds([
+            [guess.lat, guess.lon],
+            [roundData.real_lat, roundData.real_lon]
+        ], {padding: [50,50]});
+
+        // Mostrar botón leaderboard
+        document.getElementById('leaderboard-btn').style.display = 'inline-block';
+
+        // Pre-cargar datos del modal para cuando le den click
+        document.getElementById('res-distance').innerText = guess.distance.toFixed(2);
+        document.getElementById('res-score').innerText = guess.score;
+        
+        // Cargar ranking
+        const lbRes = await fetch('/api/leaderboard');
+        const leaderboard = await lbRes.json();
+        const list = document.getElementById('leaderboard-list');
+        list.innerHTML = '';
+        leaderboard.forEach(entry => {
+            const li = document.createElement('li');
+            li.innerText = `${entry.username}: ${entry.score} pts (${entry.distance.toFixed(1)} km)`;
+            list.appendChild(li);
+        });
     }
 }
 
@@ -168,6 +237,17 @@ async function showResults(result) {
     });
     
     document.getElementById('result-modal').classList.remove('hidden');
+    
+    // Mostrar botón de ver ranking
+    const lbBtn = document.getElementById('leaderboard-btn');
+    if (lbBtn) lbBtn.style.display = 'inline-block';
+}
+
+const lbBtn = document.getElementById('leaderboard-btn');
+if (lbBtn) {
+    lbBtn.addEventListener('click', () => {
+        document.getElementById('result-modal').classList.remove('hidden');
+    });
 }
 
 document.getElementById('close-modal').addEventListener('click', () => {
