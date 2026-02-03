@@ -191,6 +191,18 @@ app.post('/admin/create-round', requireAuth, (req, res) => {
     );
 });
 
+// Obtener todas las rondas (ADMIN)
+app.get('/admin/rounds', requireAuth, (req, res) => {
+    if (req.session.username !== 'admin') {
+        return res.status(403).json({ error: 'Solo admin' });
+    }
+
+    db.all("SELECT * FROM round ORDER BY id DESC", (err, rows) => {
+        if (err) return res.status(500).json({ error: err.message });
+        res.json(rows);
+    });
+});
+
 app.listen(PORT, () => {
     console.log(`Server running on http://localhost:${PORT}`);
 });
