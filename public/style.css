@@ -378,27 +378,89 @@ input[type="number"]:focus {
 
 /* Media Queries for Responsiveness */
 @media (max-width: 768px) {
+    /* General text size adjustment */
+    body {
+        font-size: 14px;
+    }
+
+    /* Game Layout - Stack Vertical */
     .game-container {
         flex-direction: column;
+        height: 100vh; /* Fallback */
+        height: 100dvh; /* Dynamic viewport height for mobile browsers */
     }
-    .map-panel, .media-panel {
-        height: 50vh; /* Half height each on small screens */
+    
+    .media-panel {
+        height: 40%; /* Image takes top 40% */
+        width: 100%;
+        border-bottom: 2px solid #333;
+    }
+
+    .map-panel {
+        height: 60%; /* Map takes bottom 60% for better interaction */
         width: 100%;
     }
+
+    /* Controls - Compact Layout */
+    .controls {
+        flex-direction: row;
+        flex-wrap: wrap;
+        justify-content: center;
+        top: 5px;
+        left: 5px;
+        right: 5px;
+        width: auto;
+        padding: 5px;
+        gap: 5px;
+    }
+    
+    #user-display {
+        font-size: 0.9rem;
+        width: 100%; /* Force name to own line */
+        text-align: center;
+        margin-bottom: 2px;
+    }
+    
+    .controls button, .controls a {
+        padding: 6px 12px; /* Smaller buttons */
+        font-size: 0.8rem;
+    }
+
+    /* Confirm Button - Touch Friendly */
+    #confirm-btn {
+        width: 80%; /* Wider target */
+        padding: 12px;
+        font-size: 1rem;
+        bottom: 15px;
+    }
+
+    /* Forms (Login/Admin) */
+    .login-container, .admin-container {
+        width: 90%;
+        padding: 1.5rem; /* Reduce padding */
+        max-width: none;
+    }
+
+    .login-container h1, .admin-container h1 {
+        font-size: 1.5rem;
+    }
+
+    /* Admin Tabs Mobile */
+    .tabs {
+        justify-content: center !important;
+    }
+    .tabs button {
+        flex: 1; /* Equal width tabs */
+        margin-right: 5px;
+        padding: 8px 5px;
+        font-size: 0.85rem;
+    }
+
+    /* Modal */
     .modal-content {
         min-width: unset;
-        width: 95%;
-    }
-    .controls {
-        flex-direction: column;
-        top: 10px;
-        right: 10px;
-        left: 10px;
-        width: auto;
-        gap: 10px;
-        text-align: center;
-    }
-    #admin-link {
-        margin-left: 0;
+        width: 90%;
+        padding: 20px;
+        max-height: 80vh;
     }
 }
