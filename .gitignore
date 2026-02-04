@@ -3,3 +3,4 @@ geoguessr.db
 .env
 npm-debug.log
 .DS_Store
+public/uploads

@@ -3,9 +3,22 @@ const session = require('express-session');
 const bcrypt = require('bcrypt');
 const path = require('path');
 const db = require('./db');
+const multer = require('multer');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
+
+// Configuración de Multer
+const storage = multer.diskStorage({
+    destination: (req, file, cb) => {
+        cb(null, 'public/uploads/');
+    },
+    filename: (req, file, cb) => {
+        const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+        cb(null, uniqueSuffix + path.extname(file.originalname));
+    }
+});
+const upload = multer({ storage: storage });
 
 // Middleware
 app.use(express.json());
@@ -162,7 +175,7 @@ app.get('/api/leaderboard/:slug', (req, res) => {
 });
 
 // --- ADMIN ---
-app.post('/admin/create-round', requireAuth, (req, res) => {
+app.post('/admin/create-round', requireAuth, upload.single('media_file'), (req, res) => {
     // Muy simple: cualquiera logueado puede intentar acceder si conoce la ruta, 
     // pero idealmente verificaríamos un flag 'isAdmin'. 
     // Por simplicidad del prompt "login simple", lo dejamos abierto o chequeamos username 'admin'.
@@ -171,8 +184,18 @@ app.post('/admin/create-round', requireAuth, (req, res) => {
         return res.status(403).json({ error: 'Solo admin' });
     }
 
-    const { media_url, real_lat, real_lon, slug } = req.body;
+    const { real_lat, real_lon, slug } = req.body;
+    let media_url = req.body.media_url;
+
+    // Si hay archivo subido, usamos su ruta
+    if (req.file) {
+        media_url = '/uploads/' + req.file.filename;
+    }
     
+    if (!media_url) {
+        return res.status(400).json({ error: 'Falta imagen o video' });
+    }
+
     // Crear nueva ronda con slug específico
     // Generar slug si no viene (simple timestamp o random)
     const finalSlug = slug || 'game-' + Date.now();
