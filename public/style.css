@@ -62,6 +62,23 @@ button:disabled, .custom-file-upload:disabled {
     margin-right: 10px;
 }
 
+/* Tab Button Styles */
+.tabs button {
+    border-radius: 8px;
+    transition: background-color 0.3s ease;
+    text-transform: none;
+    letter-spacing: normal;
+    padding: 8px 15px;
+    font-size: 0.9rem;
+    background: #95a5a6; /* Inactive tab color */
+    color: var(--white);
+    border: none; /* Ensure no default button border */
+}
+
+.tabs button.active-tab {
+    background: var(--primary-color); /* Active tab color */
+}
+
 /* Input Fields */
 input[type="text"],
 input[type="password"],

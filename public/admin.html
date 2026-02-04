@@ -16,14 +16,14 @@
 
             <label style="margin-top: 20px;">Imagen o Video:</label>
             <div class="tabs" style="margin-bottom: 10px; display: flex; justify-content: flex-start; gap: 10px;">
-                <button type="button" id="tab-url" class="active-tab" style="padding: 8px 15px; font-size: 0.9rem; background: var(--secondary-color); color: var(--white); text-transform: none; letter-spacing: normal;">Usar URL</button>
-                <button type="button" id="tab-file" style="padding: 8px 15px; font-size: 0.9rem; background: var(--dark-bg); color: var(--white); text-transform: none; letter-spacing: normal;">Subir Archivo</button>
+                <button type="button" id="tab-url">Usar URL</button>
+                <button type="button" id="tab-file" class="active-tab">Subir Archivo</button>
             </div>
 
-            <div id="input-url-container">
+            <div id="input-url-container" style="display: none;">
                 <input type="text" id="mediaUrl" name="media_url" placeholder="https://...">
             </div>
-            <div id="input-file-container" style="display: none;">
+            <div id="input-file-container" style="display: block;">
                 <label for="mediaFile" class="custom-file-upload">Seleccionar Archivo</label>
                 <input type="file" id="mediaFile" name="media_file" accept="image/*,video/*" style="display: none;">
                 <span id="file-name-display" style="margin-left: 10px; font-style: italic; color: var(--text-color);">Ningún archivo seleccionado</span>
@@ -67,22 +67,26 @@
         const containerUrl = document.getElementById('input-url-container');
         const containerFile = document.getElementById('input-file-container');
 
+        const activateTab = (tabToActivate, tabToDeactivate, containerToActivate, containerToDeactivate) => {
+            tabToActivate.classList.add('active-tab');
+            tabToDeactivate.classList.remove('active-tab');
+            containerToActivate.style.display = 'block';
+            containerToDeactivate.style.display = 'none';
+        };
+
         tabUrl.addEventListener('click', () => {
-            containerUrl.style.display = 'block';
-            containerFile.style.display = 'none';
-            tabUrl.style.background = '#2ecc71'; // Green (Active)
-            tabFile.style.background = '#95a5a6'; // Gray
+            activateTab(tabUrl, tabFile, containerUrl, containerFile);
             document.getElementById('mediaFile').value = ''; // Reset file
+            document.getElementById('file-name-display').innerText = 'Ningún archivo seleccionado'; // Clear display
         });
 
         tabFile.addEventListener('click', () => {
-            containerUrl.style.display = 'none';
-            containerFile.style.display = 'block';
-            tabFile.style.background = '#2ecc71'; // Green (Active)
-            tabUrl.style.background = '#95a5a6'; // Gray
+            activateTab(tabFile, tabUrl, containerFile, containerUrl);
             document.getElementById('mediaUrl').value = ''; // Reset URL
         });
 
+        // Activate default tab on load (Subir Archivo)
+        tabFile.click();
 
         // Cargar lista de rondas al iniciar
         loadRounds();
