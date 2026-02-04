@@ -192,7 +192,32 @@
                 document.getElementById('admin-msg').style.color = 'green';
                 
                 const link = `${window.location.origin}/game.html?game=${result.slug}`;
-                document.getElementById('share-link').innerHTML = `Link para compartir: <br> <a href="${link}" target="_blank">${link}</a>`;
+                
+                // Generar HTML para copiar link
+                document.getElementById('share-link').innerHTML = `
+                    <p style="margin-bottom: 5px; color: #333;">Link para compartir:</p>
+                    <div style="display: flex; gap: 10px; align-items: center; justify-content: center;">
+                        <input type="text" value="${link}" id="share-input" readonly style="width: 100%; max-width: 400px; text-align: center; padding: 10px; background: #f0f0f0; border: 1px solid #ccc;">
+                        <button type="button" id="copy-btn" style="padding: 10px 15px; margin: 0; background: var(--primary-color); color: white;">Copiar</button>
+                    </div>
+                `;
+
+                // Funcionalidad botón copiar
+                document.getElementById('copy-btn').addEventListener('click', () => {
+                    const input = document.getElementById('share-input');
+                    input.select();
+                    input.setSelectionRange(0, 99999); // Para móviles
+                    navigator.clipboard.writeText(input.value).then(() => {
+                        const btn = document.getElementById('copy-btn');
+                        const originalText = btn.innerText;
+                        btn.innerText = '¡Copiado!';
+                        btn.style.background = '#2ecc71';
+                        setTimeout(() => {
+                            btn.innerText = originalText;
+                            btn.style.background = '';
+                        }, 2000);
+                    });
+                });
                 
                 // Recargar lista
                 loadRounds();
