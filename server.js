@@ -147,7 +147,7 @@ app.post('/api/guess/:slug', requireAuth, (req, res) => {
 app.get('/api/leaderboard/:slug', (req, res) => {
     const slug = req.params.slug;
     const sql = `
-        SELECT u.username, g.score, g.distance 
+        SELECT u.username, g.score, g.distance, g.lat, g.lon 
         FROM guesses g
         JOIN users u ON g.user_id = u.id
         JOIN round r ON g.round_id = r.id

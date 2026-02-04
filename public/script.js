@@ -39,6 +39,7 @@ if (logoutBtn) {
 // GAME LOGIC
 let map, marker, selectedLat, selectedLon;
 let roundData = null;
+let otherUserMarkers = []; // Array para guardar marcadores de otros usuarios
 // Get game slug from URL or default to 'paris'
 const urlParams = new URLSearchParams(window.location.search);
 const gameSlug = urlParams.get('game') || 'paris';
@@ -168,10 +169,33 @@ async function loadLeaderboard(slug) {
     const leaderboard = await lbRes.json();
     const list = document.getElementById('leaderboard-list');
     list.innerHTML = '';
+    
+    // Limpiar marcadores anteriores
+    otherUserMarkers.forEach(m => map.removeLayer(m));
+    otherUserMarkers = [];
+
     leaderboard.forEach(entry => {
+        // Añadir a la lista
         const li = document.createElement('li');
         li.innerText = `${entry.username}: ${entry.score} pts (${entry.distance.toFixed(1)} km)`;
         list.appendChild(li);
+
+        // Añadir marcador al mapa (si tiene coordenadas)
+        if (entry.lat && entry.lon) {
+            // No duplicar el marcador del usuario actual si ya se muestra por otra lógica (opcional, pero visualmente mejor)
+            // Aquí simplemente mostramos todos. Usamos un ícono diferente (círculo naranja pequeño)
+            const userMarker = L.circleMarker([entry.lat, entry.lon], {
+                radius: 6,
+                fillColor: "#f39c12", // Naranja
+                color: "#fff",
+                weight: 1,
+                opacity: 1,
+                fillOpacity: 0.8
+            }).addTo(map);
+            
+            userMarker.bindPopup(`<b>${entry.username}</b><br>${entry.score} pts`);
+            otherUserMarkers.push(userMarker);
+        }
     });
 }
 
@@ -193,6 +217,9 @@ if (confirmBtn) {
         const result = await res.json();
         
         if (res.ok) {
+            // Actualizar estado local para bloquear mapa
+            if (roundData) roundData.guessed = true;
+
             confirmBtn.innerText = "Confirmado";
             showResults(result);
             // Show real location
